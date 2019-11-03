@@ -44,7 +44,7 @@ parser.add_argument('--NTSCJ', dest='ntscj', action='store_true',
 #parser.add_argument('--daa', dest='daa', action='store_true', default=False, help='Disable analog audio decoding')
 parser.add_argument('--cxadc', dest='cxadc', action='store_true', default=False,
                     help='Use cxadc input frequency')
-
+parser.add_argument('--no-chroma', action='store_true', default=False, help='Skip chroma decode')
 
 args = parser.parse_args()
 filename = args.infile
@@ -73,7 +73,7 @@ system = 'PAL' if args.pal else 'NTSC'
 sample_freq = 40 if not args.cxadc else CXADC_FREQ
 
 vhsd = VHSDecode(filename, outname, loader, system=system, doDOD = False,
-                 inputfreq = sample_freq)
+                 inputfreq = sample_freq, no_chroma=args.no_chroma)
 vhsd.roughseek(firstframe * 2)
 
 if system == 'NTSC' and not args.ntscj:

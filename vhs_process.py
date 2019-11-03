@@ -98,8 +98,9 @@ def genHighShelf(f0, dbgain, qfactor, fs):
 #     return lddu.calczc(data, 1, 0, edge=1)
 
 class FieldPALVHS(ldd.FieldPAL):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, no_chroma=False, **kwargs):
         super(FieldPALVHS, self).__init__(*args, **kwargs)
+        self.no_chroma = no_chroma
 
 
     def refine_linelocs_pilot(self, linelocs = None):
@@ -185,7 +186,7 @@ class FieldPALVHS(ldd.FieldPAL):
 
     def downscale(self, final = False, *args, **kwargs):
         dsout, dsaudio, dsefm = super(FieldPALVHS, self).downscale(final, *args, **kwargs)
-        dschroma = self.processChroma()
+        dschroma = None if self.no_chroma else self.processChroma()
 
         return (dsout, dschroma), dsaudio, dsefm
 
@@ -196,16 +197,20 @@ class FieldPALVHS(ldd.FieldPAL):
 # later as the ld-decode is in flux at the moment.
 class VHSDecode(ldd.LDdecode):
     def __init__(self, fname_in, fname_out, freader, system = 'NTSC', doDOD = False,
-                 inputfreq = 40):
+                 inputfreq = 40, no_chroma = False):
         super(VHSDecode, self).__init__(fname_in, fname_out, freader, analog_audio = False,
                                         system = system, doDOD = doDOD, threads = 1)
         # Overwrite the rf decoder with the VHS-altered one
         self.rf = VHSRFDecode(system = system, inputfreq = inputfreq)
-        self.FieldClass = FieldPALVHS
+
+        def FieldClassWrapper(*args, **kwargs):
+            return FieldPALVHS(*args, no_chroma=no_chroma, **kwargs)
+
+        self.FieldClass = FieldClassWrapper
         self.demodcache = ldd.DemodCache(self.rf, self.infile, self.freader,
                                      num_worker_threads=self.numthreads)
 
-        if fname_out is not None:
+        if fname_out is not None and not no_chroma:
             self.outfile_chroma = open(fname_out + '.tbcc', 'wb')
         else:
             self.outfile_chroma = None
@@ -251,7 +256,8 @@ class VHSDecode(ldd.LDdecode):
         self.fieldinfo.append(fi)
 
         self.outfile_video.write(picturey)
-        self.outfile_chroma.write(picturec)
+        if self.outfile_chroma is not None:
+            self.outfile_chroma.write(picturec)
         self.fields_written += 1
 
     def close(self):
